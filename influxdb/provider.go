@@ -5,15 +5,13 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/influxdata/influxdb/client"
 )
 
 var quoteReplacer = strings.NewReplacer(`"`, `\"`)
 
-// Provider returns a terraform.ResourceProvider.
-func Provider() terraform.ResourceProvider {
+func Provider() *schema.Provider {
 	return &schema.Provider{
 		ResourcesMap: map[string]*schema.Resource{
 			"influxdb_database":         resourceDatabase(),
