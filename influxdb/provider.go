@@ -53,7 +53,7 @@ func Provider() *schema.Provider {
 func configure(d *schema.ResourceData) (interface{}, error) {
 	url, err := url.Parse(d.Get("url").(string))
 	if err != nil {
-		return nil, fmt.Errorf("invalid InfluxDB URL: %s", err)
+		return nil, fmt.Errorf("invalid InfluxDB URL: %w", err)
 	}
 
 	config := client.Config{
@@ -70,7 +70,7 @@ func configure(d *schema.ResourceData) (interface{}, error) {
 
 	_, _, err = conn.Ping()
 	if err != nil {
-		return nil, fmt.Errorf("error pinging server: %s", err)
+		return nil, fmt.Errorf("error pinging server: %w", err)
 	}
 
 	return conn, nil
