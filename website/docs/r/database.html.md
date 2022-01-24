@@ -17,17 +17,24 @@ resource "influxdb_database" "metrics" {
   name = "awesome_app"
 }
 
-resource "influxdb_database" "metrics_aggregation" {
-  name = "testdb11"
+resource "influxdb_database" "example" {
+  name = "example"
+
   retention_policies {
-    name = "52weeks"
-    duration = "52w"
-    default = "true"
+    name     = "2days"
+    duration = "48h0m0s"
   }
+
   retention_policies {
-    name = "104weeks"
-    duration = "104w"
-    shardgroupduration = "3d"
+    name     = "12weeks"
+    duration = "2016h0m0s"
+    default  = "true"
+  }
+ 
+  retention_policies {
+    name               = "1week"
+    duration           = "168h0m0s"
+    shardgroupduration = "2h0m0s"
   }
 }
 ```
@@ -42,12 +49,16 @@ The following arguments are supported:
 
 Each `retention_policies` supports the following:
 
-* `name` - (Required) The name of the retention policy
-* `duration` - (Required) The duration for retention policy, format of duration can be found at InfluxDB Documentation.
-* `replication` - (Optional) Determines how many copies of data points are stored in a cluster. Not applicable for single node / Open Source version of InfluxDB. Default value of 1.
-* `shardgroupduration` - (Optional) Determines how much time each shard group spans. How and why to modify can be found at InfluxDB Documentation.
-* `default` - (Optional) Marks current retention policy as default. Default value is false.
+* `name` - (Required) The name of the retention policy.
+* `duration` - (Required) The duration for retention policy, format of duration can be found at InfluxDB Documentation. Duration has to be passed as `0h0m0s`.
+* `replication` - (Optional) Determines how many copies of data points are stored in a cluster. Not applicable for single node / Open Source version of InfluxDB. Default value of `1`.
+* `shardgroupduration` - (Optional) Determines how much time each shard group spans. How and why to modify can be found at InfluxDB Documentation. Defaults to `1h0m0s`.
+* `default` - (Optional) Marks current retention policy as default. Default value is `false`.
 
 ## Attributes Reference
 
-This resource exports no further attributes.
+Databases can be imported using the `name`.
+
+```terraform
+terraform import influxdb_database.example example
+```

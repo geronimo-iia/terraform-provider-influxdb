@@ -2,9 +2,9 @@ package influxdb
 
 import (
 	"fmt"
-	"strconv"
 
 	"encoding/json"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/influxdata/influxdb/client"
 )
@@ -15,6 +15,9 @@ func resourceDatabase() *schema.Resource {
 		Read:   readDatabase,
 		Delete: deleteDatabase,
 		Update: updateDatabase,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -23,7 +26,7 @@ func resourceDatabase() *schema.Resource {
 				ForceNew: true,
 			},
 			"retention_policies": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				ForceNew: false,
 				Elem: &schema.Resource{
@@ -44,7 +47,7 @@ func resourceDatabase() *schema.Resource {
 						"shardgroupduration": {
 							Type:     schema.TypeString,
 							Optional: true,
-							Default:  "",
+							Default:  "1h0m0s",
 						},
 						"default": {
 							Type:     schema.TypeBool,
@@ -62,7 +65,7 @@ func createDatabase(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
 
 	name := d.Get("name").(string)
-	queryStr := fmt.Sprintf("CREATE DATABASE %s", quoteIdentifier(name))
+	queryStr := fmt.Sprintf("CREATE DATABASE %q", name)
 	query := client.Query{
 		Command: queryStr,
 	}
@@ -78,7 +81,7 @@ func createDatabase(d *schema.ResourceData, meta interface{}) error {
 	d.SetId(name)
 
 	if v, ok := d.GetOk("retention_policies"); ok {
-		retentionPolicies := v.([]interface{})
+		retentionPolicies := v.(*schema.Set).List()
 		for _, vv := range retentionPolicies {
 			retentionPolicy := vv.(map[string]interface{})
 			if err := createRetentionPolicy(conn, retentionPolicy["name"].(string), retentionPolicy["duration"].(string), retentionPolicy["replication"].(int), retentionPolicy["shardgroupduration"].(string), retentionPolicy["default"].(bool), name); err != nil {
@@ -87,7 +90,7 @@ func createDatabase(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	return nil
+	return readDatabase(d, meta)
 }
 
 func createRetentionPolicy(conn *client.Client, policyName string, duration string, replication int, shardGroupDuration string, defaultPolicy bool, database string) error {
@@ -98,9 +101,9 @@ func createRetentionPolicy(conn *client.Client, policyName string, duration stri
 	}
 
 	if defaultPolicy {
-		return exec(conn, fmt.Sprintf("CREATE RETENTION POLICY %s ON %s DURATION %s REPLICATION %d %s DEFAULT", quoteIdentifier(policyName), quoteIdentifier(database), duration, replication, shardDuration))
+		return exec(conn, fmt.Sprintf("CREATE RETENTION POLICY %q ON %q DURATION %s REPLICATION %d %s DEFAULT", policyName, database, duration, replication, shardDuration))
 	} else {
-		return exec(conn, fmt.Sprintf("CREATE RETENTION POLICY %s ON %s DURATION %s REPLICATION %d %s", quoteIdentifier(policyName), quoteIdentifier(database), duration, replication, shardDuration))
+		return exec(conn, fmt.Sprintf("CREATE RETENTION POLICY %q ON %q DURATION %s REPLICATION %d %s", policyName, database, duration, replication, shardDuration))
 	}
 }
 
@@ -112,14 +115,14 @@ func updateRetentionPolicy(conn *client.Client, policyName string, duration stri
 	}
 
 	if defaultPolicy {
-		return exec(conn, fmt.Sprintf("ALTER RETENTION POLICY %s ON %s DURATION %s REPLICATION %d %s DEFAULT", quoteIdentifier(policyName), quoteIdentifier(database), duration, replication, shardDuration))
+		return exec(conn, fmt.Sprintf("ALTER RETENTION POLICY %q ON %q DURATION %s REPLICATION %d %s DEFAULT", policyName, database, duration, replication, shardDuration))
 	} else {
-		return exec(conn, fmt.Sprintf("ALTER RETENTION POLICY %s ON %s DURATION %s REPLICATION %d %s", quoteIdentifier(policyName), quoteIdentifier(database), duration, replication, shardDuration))
+		return exec(conn, fmt.Sprintf("ALTER RETENTION POLICY %q ON %q DURATION %s REPLICATION %d %s", policyName, database, duration, replication, shardDuration))
 	}
 }
 
 func deleteRetentionPolicy(conn *client.Client, policyName string, database string) error {
-	return exec(conn, fmt.Sprintf("DROP RETENTION POLICY %s ON %s", quoteIdentifier(policyName), quoteIdentifier(database)))
+	return exec(conn, fmt.Sprintf("DROP RETENTION POLICY %q ON %q", policyName, database))
 }
 
 func readDatabase(d *schema.ResourceData, meta interface{}) error {
@@ -143,6 +146,7 @@ func readDatabase(d *schema.ResourceData, meta interface{}) error {
 
 	for _, result := range resp.Results[0].Series[0].Values {
 		if result[0] == name {
+			d.Set("name", d.Id())
 			readRetentionPolicies(d, meta)
 			return nil
 		}
@@ -156,10 +160,10 @@ func readDatabase(d *schema.ResourceData, meta interface{}) error {
 
 func readRetentionPolicies(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
-	name := d.Get("name").(string)
+	name := d.Id()
 
 	query := client.Query{
-		Command: fmt.Sprintf("SHOW RETENTION POLICIES ON %s", name),
+		Command: fmt.Sprintf("SHOW RETENTION POLICIES ON %q", name),
 	}
 
 	resp, err := conn.Query(query)
@@ -171,17 +175,29 @@ func readRetentionPolicies(d *schema.ResourceData, meta interface{}) error {
 		return resp.Err
 	}
 
-	var retentionPolicies = []map[string]string{}
+	retentionPolicies := []interface{}{}
 
 	if resp.Results[0].Err == nil {
 		for _, result := range resp.Results[0].Series[0].Values {
-			var retentionPolicy = map[string]string{
-				"name":               result[0].(string),
-				"duration":           result[1].(string),
-				"shardGroupDuration": result[2].(string),
-				"replicaN":           result[3].(json.Number).String(),
-				"default":            strconv.FormatBool(result[4].(bool)),
+
+			name := result[0].(string)
+			if name == "autogen" {
+				continue
 			}
+
+			replication, err := result[3].(json.Number).Int64()
+			if err != nil {
+				return err
+			}
+
+			retentionPolicy := map[string]interface{}{
+				"name":               name,
+				"duration":           result[1].(string),
+				"shardgroupduration": result[2].(string),
+				"replication":        replication,
+				"default":            result[4].(bool),
+			}
+
 			retentionPolicies = append(retentionPolicies, retentionPolicy)
 		}
 	}
@@ -194,7 +210,7 @@ func deleteDatabase(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
 	name := d.Id()
 
-	queryStr := fmt.Sprintf("DROP DATABASE %s", quoteIdentifier(name))
+	queryStr := fmt.Sprintf("DROP DATABASE %q", name)
 	query := client.Query{
 		Command: queryStr,
 	}
@@ -207,8 +223,6 @@ func deleteDatabase(d *schema.ResourceData, meta interface{}) error {
 		return resp.Err
 	}
 
-	d.SetId("")
-
 	return nil
 }
 
@@ -218,8 +232,8 @@ func updateDatabase(d *schema.ResourceData, meta interface{}) error {
 
 	if d.HasChange("retention_policies") {
 		oldRPVal, newRPVal := d.GetChange("retention_policies")
-		oldRPs := oldRPVal.([]interface{})
-		newRPs := newRPVal.([]interface{})
+		oldRPs := oldRPVal.(*schema.Set).List()
+		newRPs := newRPVal.(*schema.Set).List()
 
 		newRPMap := make(map[string]bool)
 		oldRPMap := make(map[string]bool)
