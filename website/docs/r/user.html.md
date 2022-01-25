@@ -44,4 +44,12 @@ Each `grant` supports the following:
 
 ## Attributes Reference
 
-* `admin` - (Bool) indication if the user is an admin or not.
+* `id` - The name for the user.
+
+## Import
+
+Users can be imported using the `name`.
+
+```sh
+terraform import influxdb_user.example example
+```

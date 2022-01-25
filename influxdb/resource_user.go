@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/influxdata/influxdb/client"
 )
 
@@ -14,6 +15,9 @@ func resourceUser() *schema.Resource {
 		Read:   readUser,
 		Update: updateUser,
 		Delete: deleteUser,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -43,18 +47,9 @@ func resourceUser() *schema.Resource {
 							Required: true,
 						},
 						"privilege": {
-							Type:     schema.TypeString,
-							Required: true,
-							ValidateFunc: func(v interface{}, k string) (ws []string, errors []error) {
-								value := v.(string)
-								switch value {
-								case "READ", "WRITE", "ALL":
-								default:
-									errors = append(errors, fmt.Errorf(
-										"%q must be one of following values: (READ|WRITE|ALL). Please use uppercase values only", k))
-								}
-								return
-							},
+							Type:         schema.TypeString,
+							Required:     true,
+							ValidateFunc: validation.StringInSlice([]string{"READ", "WRITE", "ALL"}, false),
 						},
 					},
 				},
@@ -75,7 +70,7 @@ func createUser(d *schema.ResourceData, meta interface{}) error {
 		admin_privileges = "WITH ALL PRIVILEGES"
 	}
 
-	queryStr := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s' %s", quoteIdentifier(name), password, admin_privileges)
+	queryStr := fmt.Sprintf("CREATE USER %q WITH PASSWORD '%s' %s", name, password, admin_privileges)
 	query := client.Query{
 		Command: queryStr,
 	}
@@ -88,7 +83,7 @@ func createUser(d *schema.ResourceData, meta interface{}) error {
 		return resp.Err
 	}
 
-	d.SetId(fmt.Sprintf("influxdb-user:%s", name))
+	d.SetId(name)
 
 	if v, ok := d.GetOk("grant"); ok {
 		grants := v.(*schema.Set).List()
@@ -121,7 +116,7 @@ func revokeAllOn(conn *client.Client, user string) error {
 
 func readUser(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
-	name := d.Get("name").(string)
+	name := d.Id()
 
 	// InfluxDB doesn't have a command to check the existence of a single
 	// User, so we instead must read the list of all Users and see
@@ -142,6 +137,7 @@ func readUser(d *schema.ResourceData, meta interface{}) error {
 	for _, result := range resp.Results[0].Series[0].Values {
 		if result[0] == name {
 			found = true
+			d.Set("name", name)
 			d.Set("admin", result[1].(bool))
 			break
 		}
@@ -159,7 +155,7 @@ func readUser(d *schema.ResourceData, meta interface{}) error {
 
 func readGrants(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
-	name := d.Get("name").(string)
+	name := d.Id()
 
 	query := client.Query{
 		Command: fmt.Sprintf("SHOW GRANTS FOR %s", quoteIdentifier(name)),
@@ -190,7 +186,7 @@ func readGrants(d *schema.ResourceData, meta interface{}) error {
 
 func updateUser(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
-	name := d.Get("name").(string)
+	name := d.Id()
 
 	if d.HasChange("admin") {
 		if !d.Get("admin").(bool) {
@@ -249,7 +245,7 @@ func updateUser(d *schema.ResourceData, meta interface{}) error {
 
 func deleteUser(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
-	name := d.Get("name").(string)
+	name := d.Id()
 
 	queryStr := fmt.Sprintf("DROP USER %s", quoteIdentifier(name))
 	query := client.Query{
@@ -263,8 +259,6 @@ func deleteUser(d *schema.ResourceData, meta interface{}) error {
 	if resp.Err != nil {
 		return resp.Err
 	}
-
-	d.SetId("")
 
 	return nil
 }

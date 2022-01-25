@@ -4,44 +4,44 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/influxdata/influxdb/client"
 )
 
 func TestAccInfluxDBUser_admin(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
+	resourceName := "influxdb_user.test"
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccUserConfig_admin,
+				Config: testAccUserConfig_admin(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckUserExists("influxdb_user.test"),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "name", "terraform_test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "password", "94dc3ea57721d541aae09b7bf2368c1e20d4c89996ff6df4349d86048877c0e7",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "admin", "true",
-					),
+					testAccCheckUserExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttrSet(resourceName, "password"),
+					resource.TestCheckResourceAttr(resourceName, "admin", "true"),
+					resource.TestCheckResourceAttr(resourceName, "grant.#", "0"),
 				),
 			},
 			{
-				Config: testAccUserConfig_revoke,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password"},
+			},
+			{
+				Config: testAccUserConfig_revoke(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckUserExists("influxdb_user.test"),
-					testAccCheckUserNoAdmin("influxdb_user.test"),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "name", "terraform_test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "password", "94dc3ea57721d541aae09b7bf2368c1e20d4c89996ff6df4349d86048877c0e7",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "admin", "false",
-					),
+					testAccCheckUserExists(resourceName),
+					testAccCheckUserNoAdmin(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttrSet(resourceName, "password"),
+					resource.TestCheckResourceAttr(resourceName, "admin", "false"),
+					resource.TestCheckResourceAttr(resourceName, "grant.#", "0"),
 				),
 			},
 		},
@@ -49,46 +49,51 @@ func TestAccInfluxDBUser_admin(t *testing.T) {
 }
 
 func TestAccInfluxDBUser_grant(t *testing.T) {
+	resourceName := "influxdb_user.test"
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccUserConfig_grant,
+				Config: testAccUserConfig_grant(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckUserExists("influxdb_user.test"),
-					testAccCheckUserGrants("influxdb_user.test", "terraform-green", "READ"),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "name", "terraform_test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "password", "94dc3ea57721d541aae09b7bf2368c1e20d4c89996ff6df4349d86048877c0e7",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "admin", "false",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "grant.#", "1",
-					),
+					testAccCheckUserExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttrSet(resourceName, "password"),
+					resource.TestCheckResourceAttr(resourceName, "admin", "false"),
+					resource.TestCheckResourceAttr(resourceName, "grant.#", "1"),
+					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "grant.*", map[string]string{
+						"database":  rName,
+						"privilege": "READ",
+					}),
 				),
 			},
 			{
-				Config: testAccUserConfig_grantUpdate,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password"},
+			},
+			{
+				Config: testAccUserConfig_grantUpdate(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckUserGrants("influxdb_user.test", "terraform-green", "WRITE"),
-					testAccCheckUserGrants("influxdb_user.test", "terraform-blue", "READ"),
-					testAccCheckUserGrants("influxdb_user.test", "terraform-red", "ALL PRIVILEGES"),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "name", "terraform_test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "password", "94dc3ea57721d541aae09b7bf2368c1e20d4c89996ff6df4349d86048877c0e7",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "admin", "false",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "grant.#", "3",
-					),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttrSet(resourceName, "password"),
+					resource.TestCheckResourceAttr(resourceName, "admin", "false"),
+					resource.TestCheckResourceAttr(resourceName, "grant.#", "3"),
+					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "grant.*", map[string]string{
+						"database":  rName,
+						"privilege": "ALL",
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "grant.*", map[string]string{
+						"database":  fmt.Sprintf("%s-2", rName),
+						"privilege": "WRITE",
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "grant.*", map[string]string{
+						"database":  fmt.Sprintf("%s-3", rName),
+						"privilege": "READ",
+					}),
 				),
 			},
 		},
@@ -96,44 +101,39 @@ func TestAccInfluxDBUser_grant(t *testing.T) {
 }
 
 func TestAccInfluxDBUser_revoke(t *testing.T) {
+	resourceName := "influxdb_user.test"
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccUserConfig_grant,
+				Config: testAccUserConfig_grant(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckUserExists("influxdb_user.test"),
-					testAccCheckUserGrants("influxdb_user.test", "terraform-green", "READ"),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "name", "terraform_test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "password", "94dc3ea57721d541aae09b7bf2368c1e20d4c89996ff6df4349d86048877c0e7",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "admin", "false",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "grant.#", "1",
-					),
+					testAccCheckUserExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttrSet(resourceName, "password"),
+					resource.TestCheckResourceAttr(resourceName, "admin", "false"),
+					resource.TestCheckResourceAttr(resourceName, "grant.#", "1"),
+					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "grant.*", map[string]string{
+						"database":  rName,
+						"privilege": "READ",
+					}),
 				),
 			},
 			{
-				Config: testAccUserConfig_revoke,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"password"},
+			},
+			{
+				Config: testAccUserConfig_revoke(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckUserGrantsEmpty("influxdb_user.test"),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "name", "terraform_test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "password", "94dc3ea57721d541aae09b7bf2368c1e20d4c89996ff6df4349d86048877c0e7",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "admin", "false",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_user.test", "grant.#", "0",
-					),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttrSet(resourceName, "password"),
+					resource.TestCheckResourceAttr(resourceName, "admin", "false"),
+					resource.TestCheckResourceAttr(resourceName, "grant.#", "0"),
 				),
 			},
 		},
@@ -167,12 +167,12 @@ func testAccCheckUserExists(n string) resource.TestCheckFunc {
 		}
 
 		for _, result := range resp.Results[0].Series[0].Values {
-			if result[0] == rs.Primary.Attributes["name"] {
+			if result[0] == rs.Primary.ID {
 				return nil
 			}
 		}
 
-		return fmt.Errorf("User %q does not exist", rs.Primary.Attributes["name"])
+		return fmt.Errorf("User %q does not exist", rs.Primary.ID)
 	}
 }
 
@@ -203,7 +203,7 @@ func testAccCheckUserNoAdmin(n string) resource.TestCheckFunc {
 		}
 
 		for _, result := range resp.Results[0].Series[0].Values {
-			if result[0] == rs.Primary.Attributes["name"] {
+			if result[0] == rs.Primary.ID {
 				if result[1].(bool) == true {
 					return fmt.Errorf("User %q is admin", rs.Primary.ID)
 				}
@@ -212,148 +212,84 @@ func testAccCheckUserNoAdmin(n string) resource.TestCheckFunc {
 			}
 		}
 
-		return fmt.Errorf("User %q does not exist", rs.Primary.Attributes["name"])
+		return fmt.Errorf("User %q does not exist", rs.Primary.ID)
 	}
 }
 
-func testAccCheckUserGrantsEmpty(n string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No user id set")
-		}
-
-		conn := testAccProvider.Meta().(*client.Client)
-
-		query := client.Query{
-			Command: fmt.Sprintf("SHOW GRANTS FOR %s", rs.Primary.Attributes["name"]),
-		}
-
-		resp, err := conn.Query(query)
-		if err != nil {
-			return err
-		}
-
-		if resp.Err != nil {
-			return resp.Err
-		}
-
-		for _, result := range resp.Results[0].Series[0].Values {
-			if result[1].(string) != "NO PRIVILEGES" {
-				return fmt.Errorf("User %q still has grants: %#v", rs.Primary.ID, resp.Results[0].Series[0].Values)
-			}
-		}
-
-		return nil
-	}
-}
-
-func testAccCheckUserGrants(n, database, privilege string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No user id set")
-		}
-
-		conn := testAccProvider.Meta().(*client.Client)
-
-		query := client.Query{
-			Command: fmt.Sprintf("SHOW GRANTS FOR %s", rs.Primary.Attributes["name"]),
-		}
-
-		resp, err := conn.Query(query)
-		if err != nil {
-			return err
-		}
-
-		if resp.Err != nil {
-			return resp.Err
-		}
-
-		for _, result := range resp.Results[0].Series[0].Values {
-			if result[0].(string) == database && result[1].(string) == privilege {
-				return nil
-			}
-		}
-
-		return fmt.Errorf("Privilege %q on %q for %q does not exist", privilege, database, rs.Primary.Attributes["name"])
-	}
-}
-
-var testAccUserConfig_admin = `
+func testAccUserConfig_admin(rName string) string {
+	return fmt.Sprintf(`
 resource "influxdb_user" "test" {
-    name = "terraform_test"
-    password = "terraform"
-    admin = true
+  name     = %[1]q
+  password = %[1]q
+  admin    = true
 }
-`
+`, rName)
+}
 
-var testAccUserConfig_grant = `
-resource "influxdb_database" "green" {
-    name = "terraform-green"
+func testAccUserConfig_grant(rName string) string {
+	return fmt.Sprintf(`
+resource "influxdb_database" "test" {
+  name = %[1]q
 }
 
 resource "influxdb_user" "test" {
-    name = "terraform_test"
-    password = "terraform"
-
-    grant {
-      database = "${influxdb_database.green.name}"
-      privilege = "READ"
-    }
+  name     = %[1]q
+  password = %[1]q
+  
+  grant {
+    database = influxdb_database.test.name
+    privilege = "READ"
+  }
 }
-`
-
-var testAccUserConfig_revoke = `
-resource "influxdb_database" "green" {
-    name = "terraform-green"
+`, rName)
 }
 
-resource "influxdb_user" "test" {
-    name = "terraform_test"
-    password = "terraform"
-    admin = false
-}
-`
-
-var testAccUserConfig_grantUpdate = `
-resource "influxdb_database" "red" {
-    name = "terraform-red"
-}
-
-resource "influxdb_database" "green" {
-    name = "terraform-green"
-}
-
-resource "influxdb_database" "blue" {
-    name = "terraform-blue"
+func testAccUserConfig_revoke(rName string) string {
+	return fmt.Sprintf(`	
+resource "influxdb_database" "test" {
+  name = %[1]q
 }
 
 resource "influxdb_user" "test" {
-    name = "terraform_test"
-    password = "terraform"
-
-    grant {
-      database = "${influxdb_database.red.name}"
-      privilege = "ALL"
-    }
-
-    grant {
-      database = "${influxdb_database.green.name}"
-      privilege = "WRITE"
-    }
-
-    grant {
-      database = "${influxdb_database.blue.name}"
-      privilege = "READ"
-    }
+  name     = influxdb_database.test.name
+  password = %[1]q
+  admin    = false
 }
-`
+`, rName)
+}
+
+func testAccUserConfig_grantUpdate(rName string) string {
+	return fmt.Sprintf(`		
+resource "influxdb_database" "test" {
+    name = %[1]q
+}
+
+resource "influxdb_database" "test2" {
+    name = "%[1]s-2"
+}
+
+resource "influxdb_database" "test3" {
+    name = "%[1]s-3"
+}
+
+resource "influxdb_user" "test" {
+  name     = %[1]q
+  password = %[1]q
+
+  grant {
+    database = influxdb_database.test.name
+    privilege = "ALL"
+  }
+  
+  grant {
+    database = influxdb_database.test2.name
+    privilege = "WRITE"
+  }
+  
+  grant {
+    database = influxdb_database.test3.name
+    privilege = "READ"
+  }
+}
+`, rName)
+}
