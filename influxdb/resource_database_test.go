@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/influxdata/influxdb/client"
 )
 
 func TestAccInfluxDBDatabase_basic(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
 
 	resourceName := "influxdb_database.test"
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDatabaseConfig,
+				Config: testAccDatabaseConfig(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDatabaseExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "name", "terraform-test"),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "retention_policies.#", "0"),
 				),
 			},
@@ -33,21 +35,22 @@ func TestAccInfluxDBDatabase_basic(t *testing.T) {
 }
 
 func TestAccInfluxDBDatabase_retention(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
 
 	resourceName := "influxdb_database.test"
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDatabaseWithRPSConfig,
+				Config: testAccDatabaseWithRPSConfig(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDatabaseExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "name", "terraform-rp-test"),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "retention_policies.#", "1"),
 					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "retention_policies.*", map[string]string{
 						"name":     "1day",
 						"duration": "24h0m0s",
-						"default":  "true",
+						"default":  "false",
 					}),
 				),
 			},
@@ -57,10 +60,10 @@ func TestAccInfluxDBDatabase_retention(t *testing.T) {
 				ImportStateVerify: true,
 			},
 			{
-				Config: testAccDatabaseWithRPSUpdateConfig,
+				Config: testAccDatabaseWithRPSUpdateConfig(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckDatabaseExists(resourceName),
-					resource.TestCheckResourceAttr("influxdb_database.test", "name", "terraform-rp-test"),
+					resource.TestCheckResourceAttr("influxdb_database.test", "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "retention_policies.#", "3"),
 					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "retention_policies.*", map[string]string{
 						"name":     "2days",
@@ -70,7 +73,7 @@ func TestAccInfluxDBDatabase_retention(t *testing.T) {
 					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "retention_policies.*", map[string]string{
 						"name":     "12weeks",
 						"duration": "2016h0m0s",
-						"default":  "true",
+						"default":  "false",
 					}),
 					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "retention_policies.*", map[string]string{
 						"name":               "1week",
@@ -120,44 +123,48 @@ func testAccCheckDatabaseExists(n string) resource.TestCheckFunc {
 	}
 }
 
-var testAccDatabaseConfig = `
-
+func testAccDatabaseConfig(rName string) string {
+	return fmt.Sprintf(`
 resource "influxdb_database" "test" {
-    name = "terraform-test"
+  name = %[1]q
+}
+`, rName)
 }
 
-`
-
-var testAccDatabaseWithRPSConfig = `
+func testAccDatabaseWithRPSConfig(rName string) string {
+	return fmt.Sprintf(`
 resource "influxdb_database" "test" {
-	name = "terraform-rp-test"
-	retention_policies {
-		name = "1day"
-		duration = "24h0m0s"
-		default = "true"
-	}
-}
-`
-
-var testAccDatabaseWithRPSUpdateConfig = `
-resource "influxdb_database" "test" {
-	name = "terraform-rp-test"
-  
-	retention_policies {
-	  name     = "2days"
-	  duration = "48h0m0s"
-	}
-  
-	retention_policies {
-	  name     = "12weeks"
-	  duration = "2016h0m0s"
-	  default  = "true"
-	}
-   
-	retention_policies {
-	  name               = "1week"
-	  duration           = "168h0m0s"
-	  shardgroupduration = "2h0m0s"
-	}
+  name = %[1]q
+  retention_policies {
+   name = "1day"
+    duration = "24h0m0s"
+    default = "false"
   }
-`
+}
+`, rName)
+}
+
+func testAccDatabaseWithRPSUpdateConfig(rName string) string {
+	return fmt.Sprintf(`
+resource "influxdb_database" "test" {
+  name = %[1]q
+  
+  retention_policies {
+    name     = "2days"
+    duration = "48h0m0s"
+  }
+  
+  retention_policies {
+    name     = "12weeks"
+    duration = "2016h0m0s"
+    default  = "false"
+  }
+  
+  retention_policies {
+    name               = "1week"
+    duration           = "168h0m0s"
+    shardgroupduration = "2h0m0s"
+  }
+  }
+  `, rName)
+}
