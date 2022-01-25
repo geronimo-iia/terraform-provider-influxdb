@@ -2,6 +2,7 @@ package influxdb
 
 import (
 	"fmt"
+	"reflect"
 
 	"encoding/json"
 
@@ -175,15 +176,18 @@ func readRetentionPolicies(d *schema.ResourceData, meta interface{}) error {
 		return resp.Err
 	}
 
+	defaultRetentionPolicy := map[string]interface{}{
+		"name":               "autogen",
+		"duration":           "0s",
+		"shardgroupduration": "168h0m0s",
+		"replication":        1,
+		"default":            true,
+	}
+
 	retentionPolicies := []interface{}{}
 
 	if resp.Results[0].Err == nil {
 		for _, result := range resp.Results[0].Series[0].Values {
-
-			name := result[0].(string)
-			if name == "autogen" {
-				continue
-			}
 
 			replication, err := result[3].(json.Number).Int64()
 			if err != nil {
@@ -191,11 +195,15 @@ func readRetentionPolicies(d *schema.ResourceData, meta interface{}) error {
 			}
 
 			retentionPolicy := map[string]interface{}{
-				"name":               name,
+				"name":               result[0].(string),
 				"duration":           result[1].(string),
 				"shardgroupduration": result[2].(string),
-				"replication":        replication,
+				"replication":        int(replication),
 				"default":            result[4].(bool),
+			}
+
+			if reflect.DeepEqual(retentionPolicy, defaultRetentionPolicy) {
+				continue
 			}
 
 			retentionPolicies = append(retentionPolicies, retentionPolicy)

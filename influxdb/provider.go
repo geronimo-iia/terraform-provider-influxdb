@@ -3,13 +3,10 @@ package influxdb
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/influxdata/influxdb/client"
 )
-
-var quoteReplacer = strings.NewReplacer(`"`, `\"`)
 
 func Provider() *schema.Provider {
 	return &schema.Provider{
