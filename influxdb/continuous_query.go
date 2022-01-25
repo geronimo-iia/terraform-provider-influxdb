@@ -2,6 +2,7 @@ package influxdb
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/influxdata/influxdb/client"
@@ -45,12 +46,13 @@ func createContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 	name := d.Get("name").(string)
 	database := d.Get("database").(string)
 	resample := d.Get("resample").(string)
+	quer := d.Get("query").(string)
 
 	var queryStr string
 	if resample == "" {
-		queryStr = fmt.Sprintf("CREATE CONTINUOUS QUERY %s ON %s BEGIN %s END", name, quoteIdentifier(database), d.Get("query").(string))
+		queryStr = fmt.Sprintf("CREATE CONTINUOUS QUERY %q ON %q BEGIN %s END", name, database, quer)
 	} else {
-		queryStr = fmt.Sprintf("CREATE CONTINUOUS QUERY %s ON %s RESAMPLE %s BEGIN %s END", name, quoteIdentifier(database), resample, d.Get("query").(string))
+		queryStr = fmt.Sprintf("CREATE CONTINUOUS QUERY %q ON %q RESAMPLE %s BEGIN %s END", name, database, resample, quer)
 	}
 
 	query := client.Query{
@@ -65,18 +67,17 @@ func createContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 		return resp.Err
 	}
 
-	d.Set("name", name)
-	d.Set("database", database)
-	d.Set("query", d.Get("query").(string))
-	d.SetId(fmt.Sprintf("influxdb-cq:%s", name))
+	d.SetId(fmt.Sprintf("%s:%s", name, database))
 
 	return readContinuousQuery(d, meta)
 }
 
 func readContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
-	name := d.Get("name").(string)
-	database := d.Get("database").(string)
+	name, database, err := continuousQueryId(d.Id())
+	if err != nil {
+		return err
+	}
 
 	// InfluxDB doesn't have a command to check the existence of a single
 	// ContinuousQuery, so we instead must read the list of all ContinuousQuerys and see
@@ -97,6 +98,9 @@ func readContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 		if series.Name == database {
 			for _, result := range series.Values {
 				if result[0].(string) == name {
+					d.Set("name", name)
+					d.Set("database", database)
+
 					return nil
 				}
 			}
@@ -114,7 +118,7 @@ func deleteContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 	name := d.Get("name").(string)
 	database := d.Get("database").(string)
 
-	queryStr := fmt.Sprintf("DROP CONTINUOUS QUERY %s ON %s", name, quoteIdentifier(database))
+	queryStr := fmt.Sprintf("DROP CONTINUOUS QUERY %q ON %q", name, database)
 	query := client.Query{
 		Command: queryStr,
 	}
@@ -127,7 +131,15 @@ func deleteContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 		return resp.Err
 	}
 
-	d.SetId("")
-
 	return nil
+}
+
+func continuousQueryId(id string) (string, string, error) {
+	parts := strings.SplitN(id, ":", 2)
+
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("unexpected format of ID (%s), expected NAME:DB-ID", id)
+	}
+
+	return parts[0], parts[1], nil
 }

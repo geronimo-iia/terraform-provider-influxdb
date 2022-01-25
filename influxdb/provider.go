@@ -76,10 +76,6 @@ func configure(d *schema.ResourceData) (interface{}, error) {
 	return conn, nil
 }
 
-func quoteIdentifier(ident string) string {
-	return fmt.Sprintf(`%q`, quoteReplacer.Replace(ident))
-}
-
 func exec(conn *client.Client, query string) error {
 	resp, err := conn.Query(client.Query{
 		Command: query,
