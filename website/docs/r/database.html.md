@@ -57,8 +57,12 @@ Each `retention_policies` supports the following:
 
 ## Attributes Reference
 
+* `id` - The name for the database.
+
+## Import
+
 Databases can be imported using the `name`.
 
-```terraform
+```sh
 terraform import influxdb_database.example example
 ```
