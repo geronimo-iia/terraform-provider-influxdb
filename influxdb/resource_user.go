@@ -99,19 +99,19 @@ func createUser(d *schema.ResourceData, meta interface{}) error {
 }
 
 func grantPrivilegeOn(conn *client.Client, privilege, database, user string) error {
-	return exec(conn, fmt.Sprintf("GRANT %s ON %s TO %s", privilege, quoteIdentifier(database), quoteIdentifier(user)))
+	return exec(conn, fmt.Sprintf("GRANT %s ON %q TO %q", privilege, database, user))
 }
 
 func revokePrivilegeOn(conn *client.Client, privilege, database, user string) error {
-	return exec(conn, fmt.Sprintf("REVOKE %s ON %s FROM %s", privilege, quoteIdentifier(database), quoteIdentifier(user)))
+	return exec(conn, fmt.Sprintf("REVOKE %s ON %q FROM %q", privilege, database, user))
 }
 
 func grantAllOn(conn *client.Client, user string) error {
-	return exec(conn, fmt.Sprintf("GRANT ALL PRIVILEGES TO %s", quoteIdentifier(user)))
+	return exec(conn, fmt.Sprintf("GRANT ALL PRIVILEGES TO %q", user))
 }
 
 func revokeAllOn(conn *client.Client, user string) error {
-	return exec(conn, fmt.Sprintf("REVOKE ALL PRIVILEGES FROM %s", quoteIdentifier(user)))
+	return exec(conn, fmt.Sprintf("REVOKE ALL PRIVILEGES FROM %q", user))
 }
 
 func readUser(d *schema.ResourceData, meta interface{}) error {
@@ -158,7 +158,7 @@ func readGrants(d *schema.ResourceData, meta interface{}) error {
 	name := d.Id()
 
 	query := client.Query{
-		Command: fmt.Sprintf("SHOW GRANTS FOR %s", quoteIdentifier(name)),
+		Command: fmt.Sprintf("SHOW GRANTS FOR %q", name),
 	}
 
 	resp, err := conn.Query(query)
@@ -247,7 +247,7 @@ func deleteUser(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*client.Client)
 	name := d.Id()
 
-	queryStr := fmt.Sprintf("DROP USER %s", quoteIdentifier(name))
+	queryStr := fmt.Sprintf("DROP USER %q", name)
 	query := client.Query{
 		Command: queryStr,
 	}
