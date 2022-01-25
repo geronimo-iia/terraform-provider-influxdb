@@ -4,35 +4,47 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/influxdata/influxdb/client"
 )
 
-func TestAccInfluxDBContiuousQuery(t *testing.T) {
+func TestAccInfluxDBContiuousQuery_basic(t *testing.T) {
+	resourceName := "influxdb_continuous_query.test"
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccContiuousQueryConfig,
+				Config: testAccContiuousQueryBasicConfig(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckContiuousQueryExists("influxdb_continuous_query.minnie"),
-					resource.TestCheckResourceAttr(
-						"influxdb_continuous_query.minnie", "name", "minnie",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_continuous_query.minnie", "database", "terraform-test",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_continuous_query.minnie", "query", "SELECT min(mouse) INTO min_mouse FROM zoo GROUP BY time(30m)",
-					),
-					testAccCheckContiuousQueryExists("influxdb_continuous_query.minnie_resample"),
-					resource.TestCheckResourceAttr(
-						"influxdb_continuous_query.minnie_resample", "query", "SELECT min(mouse) INTO min_mouse_resampled FROM zoo GROUP BY time(30m)",
-					),
-					resource.TestCheckResourceAttr(
-						"influxdb_continuous_query.minnie_resample", "resample", "EVERY 30m FOR 90m",
-					),
+					testAccCheckContiuousQueryExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "database", rName),
+					resource.TestCheckResourceAttr(resourceName, "query", "SELECT min(mouse) INTO min_mouse FROM zoo GROUP BY time(30m)"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccInfluxDBContiuousQuery_resample(t *testing.T) {
+	resourceName := "influxdb_continuous_query.test"
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.Test(t, resource.TestCase{
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccContiuousQueryResampleConfig(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckContiuousQueryExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "database", rName),
+					resource.TestCheckResourceAttr(resourceName, "query", "SELECT min(mouse) INTO min_mouse_resampled FROM zoo GROUP BY time(30m)"),
+					resource.TestCheckResourceAttr(resourceName, "resample", "EVERY 30m FOR 90m"),
 				),
 			},
 		},
@@ -75,27 +87,35 @@ func testAccCheckContiuousQueryExists(n string) resource.TestCheckFunc {
 			}
 		}
 
-		return fmt.Errorf("ContiuousQuery %q does not exist", rs.Primary.Attributes["name"])
+		return fmt.Errorf("ContiuousQuery %q does not exist", rs.Primary.ID)
 	}
 }
 
-var testAccContiuousQueryConfig = `
-
+func testAccContiuousQueryBasicConfig(rName string) string {
+	return fmt.Sprintf(`
 resource "influxdb_database" "test" {
-    name = "terraform-test"
+  name = %[1]q
 }
 
-resource "influxdb_continuous_query" "minnie" {
-    name = "minnie"
-    database = "${influxdb_database.test.name}"
-    query = "SELECT min(mouse) INTO min_mouse FROM zoo GROUP BY time(30m)"
+resource "influxdb_continuous_query" "test" {
+  name     = %[1]q
+  database = influxdb_database.test.name
+  query    = "SELECT min(mouse) INTO min_mouse FROM zoo GROUP BY time(30m)"
+}
+`, rName)
 }
 
-resource "influxdb_continuous_query" "minnie_resample" {
-    name = "minnie_resample"
-    database = "${influxdb_database.test.name}"
-    query = "SELECT min(mouse) INTO min_mouse_resampled FROM zoo GROUP BY time(30m)"
-    resample = "EVERY 30m FOR 90m"
+func testAccContiuousQueryResampleConfig(rName string) string {
+	return fmt.Sprintf(`
+resource "influxdb_database" "test" {
+  name = %[1]q
 }
 
-`
+resource "influxdb_continuous_query" "test" {
+  name     = %[1]q
+  database = influxdb_database.test.name
+  query    = "SELECT min(mouse) INTO min_mouse_resampled FROM zoo GROUP BY time(30m)"
+  resample = "EVERY 30m FOR 90m"
+}
+`, rName)
+}
