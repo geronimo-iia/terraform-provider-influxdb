@@ -51,6 +51,26 @@ func TestAccInfluxDBContiuousQuery_resample(t *testing.T) {
 	})
 }
 
+func TestAccContiuousQueryConfig(t *testing.T) {
+	resourceName := "influxdb_continuous_query.test"
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.Test(t, resource.TestCase{
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccContiuousQueryConfig(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckContiuousQueryExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "database", rName),
+					resource.TestCheckResourceAttr(resourceName, "query", "SELECT count(arrival_time) AS count INTO tooling_rp.:MEASUREMENT FROM raw_default_rp./.*/ WHERE tech_source_id = 'S2' GROUP BY time(1d), project, tech_source_id"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckContiuousQueryExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
@@ -101,6 +121,32 @@ resource "influxdb_continuous_query" "test" {
   name     = %[1]q
   database = influxdb_database.test.name
   query    = "SELECT min(mouse) INTO min_mouse FROM zoo GROUP BY time(30m)"
+}
+`, rName)
+}
+
+func testAccContiuousQueryConfig(rName string) string {
+	return fmt.Sprintf(`
+resource "influxdb_database" "test" {
+  name = %[1]q
+
+  retention_policies {
+	name = "tooling_rp"
+	 duration = "24h0m0s"
+	 default = "false"
+   }
+   retention_policies {
+	name = "raw_default_rp"
+	 duration = "24h0m0s"
+	 default = "false"
+   }
+
+}
+
+resource "influxdb_continuous_query" "test" {
+  name     = %[1]q
+  database = influxdb_database.test.name
+  query    = "SELECT count(arrival_time) AS count INTO tooling_rp.:MEASUREMENT FROM raw_default_rp./.*/ WHERE tech_source_id = 'S2' GROUP BY time(1d), project, tech_source_id"
 }
 `, rName)
 }
