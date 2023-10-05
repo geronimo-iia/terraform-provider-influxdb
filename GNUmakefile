@@ -33,7 +33,6 @@ lint-fix: ## Run static code analysis, check formatting and try to fix findings
 	./bin/golangci-lint run ./... -v --fix
 
 
-
 test: fmtcheck
 	go test -i $(TEST) || exit 1
 	echo $(TEST) | \
