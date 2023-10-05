@@ -8,13 +8,16 @@ default: build
 build: fmtcheck
 	go install
 
+
 test: fmtcheck
 	go test -i $(TEST) || exit 1
 	echo $(TEST) | \
 		xargs -t -n4 go test $(TESTARGS) -timeout=30s -parallel=4
 
 testacc: fmtcheck
-	INFLUXDB_USERNAME=test INFLUXDB_PASSWORD=test TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
+	TF_ACC_TERRAFORM_VERSION=1.5.0 TF_ACC=1 \
+	INFLUXDB_USERNAME=test INFLUXDB_PASSWORD=test \
+	go test -v ./... -timeout 120m
 
 vet:
 	@echo "go vet ."
