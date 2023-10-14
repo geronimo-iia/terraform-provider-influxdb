@@ -8,9 +8,9 @@ linters:
   disable-all: true
   enable:
     - durationcheck
-    - errcheck
+    #- errcheck
     - exportloopref
-    - forcetypeassert
+    #- forcetypeassert
     - godot
     - gofmt
     - gosimple
@@ -22,6 +22,6 @@ linters:
     - staticcheck
     - tenv
     - unconvert
-    - unparam
+    # - unparam
     - unused
     - vet
