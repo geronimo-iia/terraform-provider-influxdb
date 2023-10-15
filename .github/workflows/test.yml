@@ -84,6 +84,7 @@ jobs:
           sudo apt-get install -y clang pkg-config
           go get github.com/influxdata/pkg-config    
       - run: go mod download
+      - run: docker-compose up -d
       - env:
           TF_ACC: "1"
         run: go test -v -cover ./influxdb/
