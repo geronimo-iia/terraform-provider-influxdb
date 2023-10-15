@@ -83,7 +83,7 @@ func TestAccContiuousWithFailureQueryConfig(t *testing.T) {
 				Config: testAccContiuousQueryWithFailureConfig(rName),
 				// No check function is given because we expect this configuration
 				// to fail before any infrastructure is created
-				ExpectError: regexp.MustCompile("Unable to create continuous query"),
+				ExpectError: regexp.MustCompile("unable to create continuous query"),
 			},
 		},
 	})
