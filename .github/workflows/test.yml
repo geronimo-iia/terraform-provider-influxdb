@@ -82,7 +82,6 @@ jobs:
       - name: flux requirements
         run: |
           sudo apt-get install -y clang pkg-config
-          go install github.com/influxdata/pkg-config    
       - run: go mod download
       - run: docker-compose up -d
       - env:

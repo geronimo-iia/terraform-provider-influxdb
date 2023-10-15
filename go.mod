@@ -5,4 +5,5 @@ go 1.16
 require (
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.16.0
 	github.com/influxdata/influxdb v1.7.6
+	github.com/influxdata/pkg-config v0.2.13 // indirect
 )
