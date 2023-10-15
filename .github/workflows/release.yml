@@ -29,7 +29,7 @@ jobs:
       - name: flux requirements
         run: |
           sudo apt-get install -y clang pkg-config
-          GO111MODULE=off go get github.com/influxdata/pkg-config
+          go install github.com/influxdata/pkg-config
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@82a020f1f7f605c65dd2449b392a52c3fcfef7ef # v6.0.0
         id: import_gpg
