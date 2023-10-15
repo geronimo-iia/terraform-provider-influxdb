@@ -1,7 +1,7 @@
 ---
 layout: "influxdb"
 page_title: "InfluxDB: influxdb_continuous_query"
-sidebar_current: "docs-influxdb-resource-continuous_query"
+subcategory: ""
 description: |-
   The influxdb_continuous_query resource allows an InfluxDB continuous query to be managed.
 ---

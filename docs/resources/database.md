@@ -1,7 +1,7 @@
 ---
 layout: "influxdb"
 page_title: "InfluxDB: influxdb_database"
-sidebar_current: "docs-influxdb-resource-database"
+subcategory: ""
 description: |-
   The influxdb_database resource allows an InfluxDB database to be created.
 ---

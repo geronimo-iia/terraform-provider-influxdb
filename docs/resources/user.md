@@ -1,7 +1,7 @@
 ---
 layout: "influxdb"
 page_title: "InfluxDB: influxdb_user"
-sidebar_current: "docs-influxdb-resource-user"
+subcategory: ""
 description: |-
   The influxdb_user resource allows an InfluxDB users to be managed.
 ---

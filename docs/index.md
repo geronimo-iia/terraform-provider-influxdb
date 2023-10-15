@@ -1,7 +1,7 @@
 ---
 layout: "influxdb"
 page_title: "Provider: InfluxDB"
-sidebar_current: "docs-influxdb-index"
+subcategory: ""
 description: |-
   The InfluxDB provider configures databases, etc on an InfluxDB server.
 ---
