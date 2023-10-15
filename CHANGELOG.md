@@ -4,13 +4,17 @@
 
 IMPROVEMENTS:
 
-* Bump cdk version
-* Bump influxdb client version (security fix)
+* Bump golang version 1.20
+* Bump influxdb client version (security fix) v1.8.10 (later raise compilation error with flux dependency)
 * Fix flux dependency integration
 * Control creation of continuous query
 * Add provider parameters description, registry manifest
 * Migrate terraform provider documentation (website to doc)
 * Add github integration test on multiple terraform cli version
+* Update linter action
+* Update release action
+* Rewrote readme
+* Remove old script
 
 
 # 1.6.1 (Jan 25, 2022)
