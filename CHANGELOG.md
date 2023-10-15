@@ -1,4 +1,44 @@
-## 1.4.0 (Unreleased)
+# CHANGE LOG
+
+# 1.7.0
+
+IMPROVEMENTS:
+
+* Bump cdk version
+* Bump influxdb client version (security fix)
+* Fix flux dependency integration
+* Control creation of continuous query
+* Add provider parameters description, registry manifest
+* Migrate terraform provider documentation (website to doc)
+* Add github integration test on multiple terraform cli version
+
+
+# 1.6.1 (Jan 25, 2022)
+
+IMPROVEMENTS:
+
+* Db by @DrFaust92
+
+# 1.6.0 (Jan 25, 2022)
+
+IMPROVEMENTS:
+
+* User import by @DrFaust92 in #4
+* Cq refactor by @DrFaust92 in #5
+
+## 1.5.0 (Jan 24, 2022)
+
+IMPROVEMENTS:
+
+* v2 bump by @DrFaust92 in #2
+* database import support by @DrFaust92 in #3
+
+## 1.4.0 (Jan 24, 2022)
+
+IMPROVEMENTS:
+
+* Bump SDK by @DrFaust92
+
 ## 1.3.1 (August 31, 2020)
 
 IMPROVEMENTS:
