@@ -75,7 +75,7 @@ func createContinuousQuery(d *schema.ResourceData, meta interface{}) error {
 	}
 	// check that cq is created
 	if d.Id() == "" {
-		return fmt.Errorf("Unable to create continuous query '%s', check your sql query.", name)
+		return fmt.Errorf("unable to create continuous query '%s', check your sql query", name)
 	}
 
 	return nil
