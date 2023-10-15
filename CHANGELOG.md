@@ -4,8 +4,8 @@
 
 IMPROVEMENTS:
 
-* Bump golang version
-* Bump influxdb client version (security fix)
+* Bump golang version 1.20
+* Bump influxdb client version (security fix) v1.8.10 (later raise compilation error with flux dependency)
 * Fix flux dependency integration
 * Control creation of continuous query
 * Add provider parameters description, registry manifest
