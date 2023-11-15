@@ -66,14 +66,18 @@ func configure(d *schema.ResourceData) (interface{}, error) {
 
 	conn, err := client.NewClient(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error connecting server: %w", err)
 	}
 
 	// assume that an InfluxBD is already provision when using the InfluxDB provider.
 	// you have to manage dependency between your modules
-	_, _, err = conn.Ping()
+	_, version, err := conn.Ping()
 	if err != nil {
-		return nil, fmt.Errorf("error pinging server: %w", err)
+		return nil, fmt.Errorf("error connecting server: %w", err)
+	}
+
+	if version == "" {
+		return nil, fmt.Errorf("error connecting server: no version information %s", version)
 	}
 
 	return conn, nil
