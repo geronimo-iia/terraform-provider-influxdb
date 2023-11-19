@@ -1,5 +1,11 @@
 # CHANGE LOG
 
+# 1.7.1
+
+IMPROVEMENTS:
+
+* ensure a better service check before query influxdb service
+
 # 1.7.0 (Oct 19, 2023)
 
 IMPROVEMENTS:
